@@ -1,0 +1,113 @@
+<html>
+
+<head>
+    <title>Web sockets test</title>
+    <script type="text/javascript">
+        var ws;
+        var open = false;
+        var listMsg = [];
+
+        function Clicked() {
+            try {
+                // ws = new WebSocket("ws://www.pk.com?sid=" + document.getElementById('uid').value + "&rid=" + document.getElementById('room').value); //连接服务器
+                ws = new WebSocket("wss://pk.chengdajiaoyu.com?sid=" + document.getElementById('uid').value + "&rid=" + document.getElementById('room').value); //连接服务器
+                //连接websocket
+                ws.onopen = function(event, AlarmMessage) {
+                    open = true;
+                    // alert("已经与服务器建立了连接rn当前连接状态：" + this.readyState);
+                };
+                //websocket传输数据
+                ws.onmessage = function(event) {
+                    // alert("接收到服务器发送的数据：rn" + event.data);
+                    var bjts = JSON.parse(event.data);
+
+                    listMsg.push({
+                        name: bjts.SenderName,
+                        msg: bjts.Content
+                    });
+                    render();
+                };
+                //websocket关闭连接
+                ws.onclose = function(event) {
+                    open = false;
+                    // alert("已经与服务器断开连接rn当前连接状态：" + this.readyState);
+                };
+                //websocket连接异常
+                ws.onerror = function(event) {
+                    console.log(event)
+                    alert("WebSocket异常！");
+                };
+            } catch (ex) {
+                alert(ex.message);
+            }
+
+        };
+
+        function seestate() {
+            alert(ws.readyState);
+        }
+
+        function send() {
+            ws.send(JSON.stringify({
+                // SenderID: 2,
+                // ReceiverID: 1,
+                // MessageType: 1,
+                SenderName: document.getElementById('uname').value,
+                Content: document.getElementById('content').value
+            }))
+            listMsg.push({
+                name: document.getElementById('uname').value,
+                msg: document.getElementById('content').value
+            })
+            render();
+            document.getElementById('content').value = ''
+        }
+
+        function render() {
+            var html = '';
+            listMsg.forEach(v => {
+                html += `<p>${v.name}：${v.msg}</p>`;
+            })
+            document.getElementById('msg_box').innerHTML = html;
+        }
+        window.onbeforeunload = function() {
+            ws.close();
+        }
+    </script>
+</head>
+
+<body>
+    <span>房间号：</span>
+    <input type="number" id="room">
+    <br>
+    <br>
+    <span>用户id：</span>
+    <input type="number" id="uid">
+    <br>
+    <br>
+    <span>用户名：</span>
+    <input type="text" id="uname">
+    <br>
+    <br>
+    <button type="button" onclick="Clicked();">连接服务器</button>
+    <br>
+    <br>
+    <button type="button" onclick="seestate();">查看状态</button>
+    <br>
+    <br>
+    <button type="button" onclick="ws.close();">断开连接</button>
+    <br>
+    <br>
+    <span>请输入：</span>
+    <input type="text" id="content">
+    <br>
+    <br>
+    <button type="button" onclick="send();">发送</button>
+    <br>
+    <br>
+    <div id="msg_box"></div>
+    <br>
+    <br>
+</body>
+
+</html>
