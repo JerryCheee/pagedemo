@@ -1,113 +1,129 @@
+<!DOCTYPE html>
 <html>
 
 <head>
-    <title>Web sockets test</title>
-    <script type="text/javascript">
-        var ws;
-        var open = false;
-        var listMsg = [];
-
-        function Clicked() {
-            try {
-                // ws = new WebSocket("ws://www.pk.com?sid=" + document.getElementById('uid').value + "&rid=" + document.getElementById('room').value); //连接服务器
-                ws = new WebSocket("wss://pk.chengdajiaoyu.com?sid=" + document.getElementById('uid').value + "&rid=" + document.getElementById('room').value); //连接服务器
-                //连接websocket
-                ws.onopen = function(event, AlarmMessage) {
-                    open = true;
-                    // alert("已经与服务器建立了连接rn当前连接状态：" + this.readyState);
-                };
-                //websocket传输数据
-                ws.onmessage = function(event) {
-                    // alert("接收到服务器发送的数据：rn" + event.data);
-                    var bjts = JSON.parse(event.data);
-
-                    listMsg.push({
-                        name: bjts.SenderName,
-                        msg: bjts.Content
-                    });
-                    render();
-                };
-                //websocket关闭连接
-                ws.onclose = function(event) {
-                    open = false;
-                    // alert("已经与服务器断开连接rn当前连接状态：" + this.readyState);
-                };
-                //websocket连接异常
-                ws.onerror = function(event) {
-                    console.log(event)
-                    alert("WebSocket异常！");
-                };
-            } catch (ex) {
-                alert(ex.message);
-            }
-
-        };
-
-        function seestate() {
-            alert(ws.readyState);
-        }
-
-        function send() {
-            ws.send(JSON.stringify({
-                // SenderID: 2,
-                // ReceiverID: 1,
-                // MessageType: 1,
-                SenderName: document.getElementById('uname').value,
-                Content: document.getElementById('content').value
-            }))
-            listMsg.push({
-                name: document.getElementById('uname').value,
-                msg: document.getElementById('content').value
-            })
-            render();
-            document.getElementById('content').value = ''
-        }
-
-        function render() {
-            var html = '';
-            listMsg.forEach(v => {
-                html += `<p>${v.name}：${v.msg}</p>`;
-            })
-            document.getElementById('msg_box').innerHTML = html;
-        }
-        window.onbeforeunload = function() {
-            ws.close();
-        }
-    </script>
+    <meta charset="UTF-8">
+    <title>前端压缩上传图片</title>
+    <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
 </head>
 
 <body>
-    <span>房间号：</span>
-    <input type="number" id="room">
-    <br>
-    <br>
-    <span>用户id：</span>
-    <input type="number" id="uid">
-    <br>
-    <br>
-    <span>用户名：</span>
-    <input type="text" id="uname">
-    <br>
-    <br>
-    <button type="button" onclick="Clicked();">连接服务器</button>
-    <br>
-    <br>
-    <button type="button" onclick="seestate();">查看状态</button>
-    <br>
-    <br>
-    <button type="button" onclick="ws.close();">断开连接</button>
-    <br>
-    <br>
-    <span>请输入：</span>
-    <input type="text" id="content">
-    <br>
-    <br>
-    <button type="button" onclick="send();">发送</button>
-    <br>
-    <br>
-    <div id="msg_box"></div>
-    <br>
-    <br>
+	压缩比例（1-100）:  <input type="number" value="99" id="progress"/>
+	<input type="file" id="picFile" onchange="readFile(this)" /><span id="size"></span>
+    <img id="img" src="" alt="" />
+	
+    <script>
+        function readFile(obj) {
+            var file = obj.files[0];
+            //判断类型是不是图片
+            if (!/image\/\w+/.test(file.type)) {
+                alert("请确保文件为图像类型");
+                return false;
+            }
+            var reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(e) {
+				var quality = $("#progress").val();
+				if(quality > 100) {
+					$("#progress").val(99)
+					quality=99
+				}
+                dealImage(this.result, { quality: Number(quality)/100 }, function(base) {
+                    //调用
+                    var blob = dataURLtoBlob(base);
+                    var newFile = new File([blob], file.name, { type: file.type });
+                    console.log(newFile)
+					$('#size').text('大小：' + newFile.size/1000 + 'kb')
+                    let r = new FileReader(); //本地预览
+                    r.onload = function() {
+                        $('#img').attr("src", r.result);
+                    }
+                    r.readAsDataURL(newFile); //Base64
+                    // upload(newFile);
+                });
+            }
+        }
+
+        //将base64转换为blob
+        function dataURLtoBlob(dataurl) {
+            var arr = dataurl.split(','),
+                mime = arr[0].match(/:(.*?);/)[1],
+                bstr = atob(arr[1]),
+                n = bstr.length,
+                u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        }
+
+
+        function upload(file) {
+            var that = this;
+            // 创建form对象
+            let param = new FormData();
+            // 通过append向form对象添加数据
+            param.append('img', file);
+            // 文件大小
+            param.append('size', file.size);
+            for (var n in that.params) {
+                param.append(n, that.params[n]);
+            }
+
+            // 创建ajax
+            var xhr = new XMLHttpRequest();
+
+            xhr.onload = function() {
+                console.log(xhr.responseText)
+            }
+            xhr.open("POST", "yourapi", true);
+
+            // 发送表单数据
+            xhr.send(param);
+        }
+        /**
+         * 图片压缩，默认同比例压缩
+         * @param {Object} path
+         * pc端传入的路径可以为相对路径，但是在移动端上必须传入的路径是照相图片储存的绝对路径
+         * @param {Object} obj
+         * obj 对象 有 width， height， quality(0-1)
+         * @param {Object} callback
+         * 回调函数有一个参数，base64的字符串数据
+         */
+        function dealImage(path, obj, callback) {
+            var img = new Image();
+            img.src = path;
+            img.onload = function() {
+                var that = this;
+                // 默认按比例压缩
+                var w = that.width,
+                    h = that.height,
+                    scale = w / h;
+                w = obj.width || w;
+                h = obj.height || (w / scale);
+                var quality = obj.quality || 0.7; // 默认图片质量为0.7
+                //生成canvas
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                // 创建属性节点
+                var anw = document.createAttribute("width");
+                anw.nodeValue = w;
+                var anh = document.createAttribute("height");
+                anh.nodeValue = h;
+                canvas.setAttributeNode(anw);
+                canvas.setAttributeNode(anh);
+                ctx.drawImage(that, 0, 0, w, h);
+                // 图像质量
+                if (obj.quality && obj.quality <= 1 && obj.quality > 0) {
+                    quality = obj.quality;
+                }
+                // quality值越小，所绘制出的图像越模糊
+                var base64 = canvas.toDataURL('image/jpeg', quality);
+                // 回调函数返回base64的值
+                callback(base64);
+            }
+        }
+    </script>
 </body>
 
 </html>
